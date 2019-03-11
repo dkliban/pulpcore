@@ -9,9 +9,12 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+import sys
 from contextlib import suppress
 from importlib import import_module
 from pkg_resources import iter_entry_points
+
+from dynaconf import LazySettings
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -38,8 +41,6 @@ FILE_UPLOAD_HANDLERS = (
 # Dynaconf Configuration
 
 SECRET_KEY = True
-
-GLOBAL_ENV_FOR_DYNACONF = "PULP"
 
 ENVVAR_FOR_DYNACONF = "PULP_SETTINGS"
 
@@ -213,3 +214,34 @@ CONTENT_HOST = None
 CONTENT_PATH_PREFIX = '/pulp/content/'
 
 PROFILE_STAGES_API = False
+
+
+# For a list of config keys see:
+# https://dynaconf.readthedocs.io/en/latest/guides/configuration.html
+# Those keys can also be set as environment variables.
+lazy_settings = LazySettings(
+    # Configure this instance of Dynaconf
+    GLOBAL_ENV_FOR_DYNACONF='PULP',
+    ENV_FOR_DYNACONF=os.environ.get('PULP_ENV', 'DEVELOPMENT'),
+    # Then rebind all settings defined above on this settings.py file.
+    **{k: v for k, v in locals().items() if k.isupper()}
+)
+
+
+def __getattr__(name):  # noqa
+    """This function will be used by Python 3.7+"""
+    return getattr(lazy_settings, name)
+
+
+def __dir__():  # noqa
+    """This function will be used by Python 3.7+"""
+    return dir(lazy_settings)
+
+
+for setting_name, setting_value in lazy_settings._store.items():
+    setattr(sys.modules[__name__], setting_name.upper(), setting_value)
+
+# This import makes `django.conf.settings` to behave dynamically
+import dynaconf.contrib.django_dynaconf # noqa
+
+# HERE ENDS DYNACONF PATCHING
