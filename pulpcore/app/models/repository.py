@@ -274,7 +274,7 @@ class RepositoryVersion(Model):
         return self.content.filter(pk=content.pk).exists()
 
     @classmethod
-    def create(cls, repository, base_version=None):
+    def create(cls, repository, base_version=None, in_task=True):
         """
         Create a new RepositoryVersion
 
@@ -284,6 +284,8 @@ class RepositoryVersion(Model):
             repository (pulpcore.app.models.Repository): to create a new version of
             base_version (pulpcore.app.models.RepositoryVersion): an optional repository version
                 whose content will be used as the set of content for the new version
+            in_task (bool): Is the method being called inside of a task? Must be False when used
+                outside of the tasking system.
 
         Returns:
             pulpcore.app.models.RepositoryVersion: The Created RepositoryVersion
@@ -303,8 +305,9 @@ class RepositoryVersion(Model):
                 # now add any content that's in the base_version but not in version
                 version.add_content(base_version.content.exclude(pk__in=version.content))
 
-            resource = CreatedResource(content_object=version)
-            resource.save()
+            if in_task:
+                resource = CreatedResource(content_object=version)
+                resource.save()
             return version
 
     @staticmethod
