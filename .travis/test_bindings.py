@@ -14,23 +14,23 @@ import requests
 from tempfile import NamedTemporaryFile
 
 
-def monitor_task(task_href):
+def monitor_task(task_href_):
     """Polls the Task API until the task is in a completed state.
 
     Prints the task details and a success or failure message. Exits on failure.
 
     Args:
-        task_href(str): The href of the task to monitor
+        task_href_(str): The href_ of the task to monitor
 
     Returns:
-        list[str]: List of hrefs that identify resource created by the task
+        list[str]: List of href_s that identify resource created by the task
 
     """
     completed = ['completed', 'failed', 'canceled']
-    task = tasks.read(task_href)
+    task = tasks.read(task_href_)
     while task.state not in completed:
         sleep(2)
-        task = tasks.read(task_href)
+        task = tasks.read(task_href_)
     pprint(task)
     if task.state == 'completed':
         print("The task was successfful.")
@@ -69,13 +69,13 @@ def upload_file_in_chunks(file_path):
                                                                 size=size)
             with NamedTemporaryFile() as file_chunk:
                 file_chunk.write(chunk)
-                upload = uploads.update(upload_href=upload.href,
+                upload = uploads.update(upload_href=upload.href_,
                                         file=file_chunk.name,
                                         content_range=content_range)
             offset += chunk_size
             sha256hasher.update(chunk)
 
-        commit_response = uploads.commit(upload.href, UploadCommit(sha256=sha256hasher.hexdigest()))
+        commit_response = uploads.commit(upload.href_, UploadCommit(sha256=sha256hasher.hexdigest()))
         created_resources = monitor_task(commit_response.task)
         artifact = artifacts.read(created_resources[0])
 
@@ -125,8 +125,8 @@ repository = repositories.create(repository_data)
 pprint(repository)
 
 # Sync a Repository
-repository_sync_data = RepositorySyncURL(repository=repository.href)
-sync_response = fileremotes.sync(file_remote.href, repository_sync_data)
+repository_sync_data = RepositorySyncURL(repository=repository.href_)
+sync_response = fileremotes.sync(file_remote.href_, repository_sync_data)
 
 pprint(sync_response)
 
@@ -142,13 +142,13 @@ artifact = artifacts.create(file=file_path)
 pprint(artifact)
 
 # Create a FileContent from the artifact
-file_data = FileContent(relative_path='foo.tar.gz', artifact=artifact.href)
+file_data = FileContent(relative_path='foo.tar.gz', artifact_=artifact.href_)
 filecontent = filecontent.create(file_data)
 pprint(filecontent)
 
 # Add the new FileContent to a repository version
-repo_version_data = {'add_content_units': [filecontent.href]}
-repo_version_response = repoversions.create(repository.href, repo_version_data)
+repo_version_data = {'add_content_units': [filecontent.href_]}
+repo_version_response = repoversions.create(repository.href_, repo_version_data)
 
 # Monitor the repo version creation task
 created_resources = monitor_task(repo_version_response.task)
@@ -157,13 +157,13 @@ repository_version_2 = repoversions.read(created_resources[0])
 pprint(repository_version_2)
 
 # Create a publication from the latest version of the repository
-publish_data = FilePublication(repository=repository.href)
+publish_data = FilePublication(repository=repository.href_)
 publish_response = filepublications.create(publish_data)
 
 # Monitor the publish task
 created_resources = monitor_task(publish_response.task)
-publication_href = created_resources[0]
+publication_href_ = created_resources[0]
 
-distribution_data = FileDistribution(name='baz25', base_path='foo25', publication=publication_href)
+distribution_data = FileDistribution(name='baz25', base_path='foo25', publication=publication_href_)
 distribution = filedistributions.create(distribution_data)
 pprint(distribution)
