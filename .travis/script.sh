@@ -93,32 +93,25 @@ if [ "$TEST" = 'bindings' ]; then
 fi
 
 # Run unit tests.
-coverage run $(which django-admin) test ./pulpcore/tests/unit/
+pytest ./pulpcore/tests/unit/
 
 # Run functional tests, and upload coverage report to codecov.
 show_logs_and_return_non_zero() {
     readonly local rc="$?"
 
-    for logfile in "~/django_runserver.log" "~/content_app.log" "~/resource_manager.log" "~/reserved_worker-1.log"
+    for containerlog in "pulp-api" "pulp-content" "pulp-resource-manager" "pulp-worker"
     do
-      echo -en "travis_fold:start:$logfile"'\\r'
-      cat $logfile
-      echo -en "travis_fold:end:$logfile"'\\r'
+      echo -en "travis_fold:start:$containerlog"'\\r'
+      sudo kubectl logs -l app=$containerlog --tail=10000
+      echo -en "travis_fold:end:$containerlog"'\\r'
     done
 
     return "${rc}"
 }
 
-# Stop services started by ansible roles
-sudo systemctl stop pulp-worker* pulp-resource-manager pulp-content-app pulp-api
-
-# Start services with logs and coverage
-export PULP_CONTENT_HOST=localhost:24816
-rq worker -n 'resource-manager@%h' -w 'pulpcore.tasking.worker.PulpWorker' -c 'pulpcore.rqconfig' >> ~/resource_manager.log 2>&1 &
-rq worker -n 'reserved-resource-worker-1@%h' -w 'pulpcore.tasking.worker.PulpWorker' -c 'pulpcore.rqconfig' >> ~/reserved_worker-1.log 2>&1 &
-gunicorn pulpcore.tests.functional.content_with_coverage:server --bind 'localhost:24816' --worker-class 'aiohttp.GunicornWebWorker' -w 2 >> ~/content_app.log 2>&1 &
-coverage run $(which django-admin) runserver 24817 --noreload >> ~/django_runserver.log 2>&1 &
-wait_for_pulp 20
+# Containers may take a long time to download & start.
+# See pulp-operator/.travis/pulp-operator-check-and-wait.sh
+wait_for_pulp 600
 
 # Run functional tests
 if [ -f $FUNC_TEST_SCRIPT ]; then
@@ -126,16 +119,6 @@ if [ -f $FUNC_TEST_SCRIPT ]; then
 else
     pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || show_logs_and_return_non_zero
 fi
-
-# Stop services to write coverage
-kill -SIGINT %?runserver
-kill -SIGINT %?content_with_coverage
-kill -SIGINT %?reserved-resource-worker
-kill -SIGINT %?resource-manager
-wait || true
-
-coverage combine
-codecov
 
 if [ -f $POST_SCRIPT ]; then
     $POST_SCRIPT
