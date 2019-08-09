@@ -15,10 +15,53 @@ fi
 
 pip install -r test_requirements.txt
 
-# Run Ansible playbook
-cd ../ansible-pulp
-ansible-galaxy install -r requirements.yml
+cd containers
 
-ansible-playbook --connection=local --inventory 127.0.0.1, playbook.yml --extra-vars \
-  "pulp_python_interpreter=$VIRTUAL_ENV/bin/python, pulp_install_dir=$VIRTUAL_ENV \
-  pulp_db_type=$DB"
+# If we are on a PR
+if [ -n "$TRAVIS_PULL_REQUEST_BRANCH" ]; then
+  TAG=$TRAVIS_PULL_REQUEST_BRANCH
+# For push builds, tag builds, and hopefully cron builds
+elif [ -n "$TRAVIS_BRANCH" ]; then
+  TAG=$TRAVIS_BRANCH
+  if [[ "$IMAGE_KEY" = "master" ]]; then
+    TAG=latest
+  fi
+else
+  # Fallback
+  TAG=$(git rev-parse --abbrev-ref HEAD)
+fi
+# Ansible var names/keys cannot have dashes
+TAG=$(echo $TAG | tr '-' '_')
+
+cat > vars/vars.yaml << VARSYAML
+---
+images:
+  - pulpcore_$TAG:
+      image_name: pulp_file
+      tag: $TAG
+      pulpcore: ./pulpcore
+      pulpcore_plugin: ./pulpcore-plugin
+      plugins:
+        - ./pulp_file
+VARSYAML
+
+ansible-playbook build.yaml
+
+cd ../pulp-operator
+cat > deploy/crds/pulpproject_v1alpha1_pulp_cr.yaml << CRYAML
+apiVersion: pulpproject.org/v1alpha1
+kind: Pulp
+metadata:
+  name: example-pulp
+spec:
+  pulp_file_storage:
+    # k3s local-path requires this
+    access_mode: "ReadWriteOnce"
+    # We have a little over 40GB free on Travis VMs/instances
+    size: "40Gi"
+  image: pulp_file
+  tag: $TAG
+CRYAML
+
+  .travis/k3s-install.sh
+  sudo ./up.sh

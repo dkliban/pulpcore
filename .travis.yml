@@ -29,6 +29,7 @@ matrix:
 services:
     - postgresql
     - redis-server
+    - docker
 addons:
   apt:
     packages:
