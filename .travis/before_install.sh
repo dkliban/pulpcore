@@ -15,7 +15,7 @@ export POST_BEFORE_INSTALL=$TRAVIS_BUILD_DIR/.travis/post_before_install.sh
 COMMIT_MSG=$(git log --format=%B --no-merges -1)
 export COMMIT_MSG
 
-if [ -x $PRE_BEFORE_INSTALL ]; then
+if [ -f $PRE_BEFORE_INSTALL ]; then
     $PRE_BEFORE_INSTALL
 fi
 
@@ -56,6 +56,8 @@ if [ -n "$PULP_OPERATOR_PR_NUMBER" ]; then
 fi
 
 
+
+
 git clone --depth=1 https://github.com/pulp/pulpcore-plugin.git
 
 if [ -n "$PULP_PLUGIN_PR_NUMBER" ]; then
@@ -82,6 +84,6 @@ cp pulpcore/.travis/postgres.yml ansible-pulp/postgres.yml
 
 cd pulpcore
 
-if [ -x $POST_BEFORE_INSTALL ]; then
+if [ -f $POST_BEFORE_INSTALL ]; then
     $POST_BEFORE_INSTALL
 fi

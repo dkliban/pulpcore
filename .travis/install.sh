@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # WARNING: DO NOT EDIT!
 #
@@ -15,7 +15,7 @@ fi
 
 pip install -r test_requirements.txt
 
-cd containers
+cd $TRAVIS_BUILD_DIR/../pulpcore/containers/
 
 # If we are on a PR
 if [ -n "$TRAVIS_PULL_REQUEST_BRANCH" ]; then
@@ -23,31 +23,43 @@ if [ -n "$TRAVIS_PULL_REQUEST_BRANCH" ]; then
 # For push builds, tag builds, and hopefully cron builds
 elif [ -n "$TRAVIS_BRANCH" ]; then
   TAG=$TRAVIS_BRANCH
-  if [[ "$IMAGE_KEY" = "master" ]]; then
+  if [ "$TAG" = "master" ]; then
     TAG=latest
   fi
 else
   # Fallback
   TAG=$(git rev-parse --abbrev-ref HEAD)
 fi
-# Ansible var names/keys cannot have dashes
-TAG=$(echo $TAG | tr '-' '_')
+
+
+PLUGIN=pulp_file
+
+
+# For pulpcore, and any other repo that might check out a pulp-certguard PR
+if [ -e $TRAVIS_BUILD_DIR/../pulp-certguard ]; then
+  PULP_CERTGUARD=./pulp-certguard
+else
+  # Otherwise, stable release
+  PULP_CERTGUARD=pulp-certguard
+fi
 
 cat > vars/vars.yaml << VARSYAML
 ---
 images:
-  - pulpcore_$TAG:
-      image_name: pulp_file
+  - ${PLUGIN}-${TAG}:
+      image_name: $PLUGIN
       tag: $TAG
       pulpcore: ./pulpcore
       pulpcore_plugin: ./pulpcore-plugin
       plugins:
-        - ./pulp_file
+        - $PULP_CERTGUARD
+        - ./$PLUGIN
 VARSYAML
 
 ansible-playbook build.yaml
 
-cd ../pulp-operator
+cd $TRAVIS_BUILD_DIR/../pulp-operator
+# Tell pulp-perator to deploy our image
 cat > deploy/crds/pulpproject_v1alpha1_pulp_cr.yaml << CRYAML
 apiVersion: pulpproject.org/v1alpha1
 kind: Pulp
@@ -59,9 +71,8 @@ spec:
     access_mode: "ReadWriteOnce"
     # We have a little over 40GB free on Travis VMs/instances
     size: "40Gi"
-  image: pulp_file
+  image: $PLUGIN
   tag: $TAG
 CRYAML
-
-  .travis/k3s-install.sh
-  sudo ./up.sh
+.travis/k3s-install.sh
+sudo ./up.sh

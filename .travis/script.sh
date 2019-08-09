@@ -42,7 +42,7 @@ if [ "$TEST" = 'docs' ]; then
   make html
   cd ..
 
-  if [ -x $POST_DOCS_TEST ]; then
+  if [ -f $POST_DOCS_TEST ]; then
       $POST_DOCS_TEST
   fi
   exit
@@ -98,13 +98,16 @@ coverage run $(which django-admin) test ./pulpcore/tests/unit/
 # Run functional tests, and upload coverage report to codecov.
 show_logs_and_return_non_zero() {
     readonly local rc="$?"
-    cat ~/django_runserver.log
-    cat ~/content_app.log
-    cat ~/resource_manager.log
-    cat ~/reserved_worker-1.log
+
+    for logfile in "~/django_runserver.log" "~/content_app.log" "~/resource_manager.log" "~/reserved_worker-1.log"
+    do
+      echo -en "travis_fold:start:$logfile"'\\r'
+      cat $logfile
+      echo -en "travis_fold:end:$logfile"'\\r'
+    done
+
     return "${rc}"
 }
-export -f show_logs_and_return_non_zero
 
 # Stop services started by ansible roles
 sudo systemctl stop pulp-worker* pulp-resource-manager pulp-content-app pulp-api
@@ -118,7 +121,7 @@ coverage run $(which django-admin) runserver 24817 --noreload >> ~/django_runser
 wait_for_pulp 20
 
 # Run functional tests
-if [ -x $FUNC_TEST_SCRIPT ]; then
+if [ -f $FUNC_TEST_SCRIPT ]; then
     $FUNC_TEST_SCRIPT
 else
     pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || show_logs_and_return_non_zero
@@ -134,6 +137,6 @@ wait || true
 coverage combine
 codecov
 
-if [ -x $POST_SCRIPT ]; then
+if [ -f $POST_SCRIPT ]; then
     $POST_SCRIPT
 fi
