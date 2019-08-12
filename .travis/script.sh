@@ -96,13 +96,13 @@ if [ "$TEST" = 'bindings' ]; then
 fi
 
 
-# Many tests require pytest, but users do not need it at runtime
+PULP_API_POD=$(sudo kubectl get pods | grep -E -o "pulp-api-(\w+)-(\w+)")
+export CMD_PREFIX="sudo kubectl exec $PULP_API_POD --"
+# Many tests require pytest/mock, but users do not need them at runtime
 # (or to add plugins on top of pulpcore or pulp container images.)
 # So install it here, rather than in the image Dockerfile.
 # This has to be done after wait_for_pulp (although not at the very end of it.)
-PULP_API_POD=$(sudo kubectl get pods | grep -E -o "pulp-api-(\w+)-(\w+)")
-export CMD_PREFIX="sudo kubectl exec $PULP_API_POD --"
-$CMD_PREFIX pip3 install pytest
+$CMD_PREFIX pip3 install pytest mock
 # The alias does not seem to work in Travis / the scripting framework
 #alias pytest="$CMD_PREFIX pytest"
 
