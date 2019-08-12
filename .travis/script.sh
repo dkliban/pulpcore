@@ -37,7 +37,6 @@ wait_for_pulp() {
 }
 
 if [ "$TEST" = 'docs' ]; then
-  sleep 5
   cd docs
   make html
   cd ..
@@ -47,6 +46,11 @@ if [ "$TEST" = 'docs' ]; then
   fi
   exit
 fi
+
+# Containers may take a long time to download & start.
+# See pulp-operator/.travis/pulp-operator-check-and-wait.sh
+wait_for_pulp 600
+
 
 if [ "$TEST" = 'bindings' ]; then
   COMMIT_MSG=$(git log --format=%B --no-merges -1)
@@ -108,10 +112,6 @@ show_logs_and_return_non_zero() {
 
     return "${rc}"
 }
-
-# Containers may take a long time to download & start.
-# See pulp-operator/.travis/pulp-operator-check-and-wait.sh
-wait_for_pulp 600
 
 # Run functional tests
 if [ -f $FUNC_TEST_SCRIPT ]; then
