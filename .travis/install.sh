@@ -79,9 +79,3 @@ CRYAML
 .travis/k3s-install.sh
 # Deploy pulp-operator, with the pulp containers, according to CRYAML
 sudo ./up.sh
-
-# Many tests require pytest, but users do not need it at runtime
-# (or to add plugins on top of pulpcore or pulp container images.)
-# So install it here, rather than in the image Dockerfile
-PULP_API_POD=$(sudo kubectl get pods | grep -E -o "pulp-api-(\w+)-(\w+)")
-sudo kubectl exec $PULP_API_POD -- pip3 install pytest
