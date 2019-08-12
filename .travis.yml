@@ -10,8 +10,9 @@ sudo: required
 dist: xenial
 language: python
 python:
-    # python versions used in el7 SCL & supported fedora
-    - "3.6"
+    # Fedora has 3.6 available (python36.x86_64), but pulp container images
+    # with it are not being built or published yet.
+    # - "3.6"
     - "3.7"
 env:
   matrix:
