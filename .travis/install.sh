@@ -74,5 +74,12 @@ spec:
   image: $PLUGIN
   tag: $TAG
 CRYAML
+
+# Install k3s, lightweight Kubernetes
 .travis/k3s-install.sh
+# Deploy pulp-operator, with the pulp containers, according to CRYAML
 sudo ./up.sh
+
+# Many tests require pytest
+PULP_API_POD=$(kubectl get pods | grep -E -o "pulp-api-(\w+)-(\w+)")
+kubectl exec $PULP_API_POD -- pip3 install pytest
