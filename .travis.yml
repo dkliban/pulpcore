@@ -22,7 +22,7 @@ env:
 
 matrix:
   exclude:
-    - python: '3.7'
+    - python: '3.6'
       env: DB=postgres TEST=bindings
     - python: '3.6'
       env: DB=postgres TEST=docs
