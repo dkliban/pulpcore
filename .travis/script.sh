@@ -101,12 +101,13 @@ fi
 # So install it here, rather than in the image Dockerfile.
 # This has to be done after wait_for_pulp (although not at the very end of it.)
 PULP_API_POD=$(sudo kubectl get pods | grep -E -o "pulp-api-(\w+)-(\w+)")
-CMD_PREFIX="sudo kubectl exec $PULP_API_POD --"
+export CMD_PREFIX="sudo kubectl exec $PULP_API_POD --"
 $CMD_PREFIX pip3 install pytest
-alias pytest="$CMD_PREFIX pytest"
+# The alias does not seem to work in Travis / the scripting framework
+#alias pytest="$CMD_PREFIX pytest"
 
 # Run unit tests.
-pytest ./pulpcore/tests/unit/
+$CMD_PREFIX pytest /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/
 
 # Run functional tests, and upload coverage report to codecov.
 show_logs_and_return_non_zero() {
@@ -126,7 +127,7 @@ show_logs_and_return_non_zero() {
 if [ -f $FUNC_TEST_SCRIPT ]; then
     $FUNC_TEST_SCRIPT
 else
-    pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || show_logs_and_return_non_zero
+    $CMD_PREFIX pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || show_logs_and_return_non_zero
 fi
 
 if [ -f $POST_SCRIPT ]; then
