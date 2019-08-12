@@ -3,6 +3,7 @@ django
 djangorestframework
 django-filter
 drf-nested-routers
+drf-yasg
 dynaconf
 plantuml
 pyyaml

@@ -79,3 +79,4 @@ CRYAML
 .travis/k3s-install.sh
 # Deploy pulp-operator, with the pulp containers, according to CRYAML
 sudo ./up.sh
+.travis/pulp-operator-check-and-wait.sh
