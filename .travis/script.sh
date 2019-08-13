@@ -107,7 +107,7 @@ $CMD_PREFIX pip3 install pytest mock
 #alias pytest="$CMD_PREFIX pytest"
 
 # Run unit tests.
-# Temporarily disable
+# Temporarily disable to see if functional tests work
 # $CMD_PREFIX pytest /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/
 
 # Run functional tests, and upload coverage report to codecov.
@@ -128,7 +128,7 @@ show_logs_and_return_non_zero() {
 if [ -f $FUNC_TEST_SCRIPT ]; then
     $FUNC_TEST_SCRIPT
 else
-    $CMD_PREFIX pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || show_logs_and_return_non_zero
+    pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || show_logs_and_return_non_zero
 fi
 
 if [ -f $POST_SCRIPT ]; then
