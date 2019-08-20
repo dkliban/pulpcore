@@ -27,7 +27,7 @@ wait_for_pulp() {
     sleep 1
     TIMEOUT=$(($TIMEOUT - 1))
     STATUS=$(http :24817/pulp/api/v3/status/ 2>/dev/null)
-    if [ "$(echo $STATUS | jq '.database_connection.connected and .redis_connection.connected')" = "true"
+    if [ "$(echo $STATUS | jq '.database_connection.connected and .redis_connection.connected')" = "true"\
       -a "$(echo $STATUS | jq '.online_content_apps[0]')" != "null" ]
     then
       echo
