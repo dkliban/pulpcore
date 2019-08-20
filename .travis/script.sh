@@ -127,9 +127,11 @@ show_logs_and_return_non_zero() {
 }
 
 # Run functional tests
+set +u
 
 export PYTHONPATH=$TRAVIS_BUILD_DIR:${PYTHONPATH}
 
+set -u
 if [ -f $FUNC_TEST_SCRIPT ]; then
     $FUNC_TEST_SCRIPT
 else
