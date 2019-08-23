@@ -99,4 +99,4 @@ show_logs_and_return_non_zero() {
 
     return "${rc}"
 }
-.travis/pulp-operator-check-and-wait.sh
+.travis/pulp-operator-check-and-wait.sh || show_logs_and_return_non_zero

@@ -109,8 +109,7 @@ $CMD_PREFIX pip3 install pytest mock
 #alias pytest="$CMD_PREFIX pytest"
 
 # Run unit tests.
-# Temporarily tolerate failure while we work on functional tests
-$CMD_PREFIX pytest /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/ || /bin/true
+$CMD_PREFIX pytest /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/
 
 # Run functional tests, and upload coverage report to codecov.
 
