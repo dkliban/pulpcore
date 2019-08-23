@@ -11,6 +11,7 @@ set -v
 
 if [ "$TEST" = 'docs' ]; then
   pip3 install -r doc_requirements.txt
+  pip3 install psycopg2-binary
 fi
 
 pip install -r test_requirements.txt
