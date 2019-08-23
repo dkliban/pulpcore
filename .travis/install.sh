@@ -11,7 +11,7 @@ set -v
 
 if [ "$TEST" = 'docs' ]; then
 
-  pip3 install -r ../pulpcore/doc_requirements.txt
+  pip3 install -r doc_requirements.txt
   pip3 install -r ../pulpcore/pulpcore.egg-info/requires.txt
   pip3 install -r ../pulpcore/pulpcore.egg-info/requires.txt[postgres]
 fi
@@ -82,4 +82,21 @@ CRYAML
 .travis/k3s-install.sh
 # Deploy pulp-operator, with the pulp containers, according to CRYAML
 sudo ./up.sh
+
+# Copied from script.sh
+# Needed for the script below
+# Since it is being run during install rather than actual tests, and therefore
+# does not trigger after_failure travis commands.
+show_logs_and_return_non_zero() {
+    readonly local rc="$?"
+
+    for containerlog in "pulp-api" "pulp-content" "pulp-resource-manager" "pulp-worker"
+    do
+      echo -en "travis_fold:start:$containerlog"'\\r'
+      sudo kubectl logs -l app=$containerlog --tail=10000
+      echo -en "travis_fold:end:$containerlog"'\\r'
+    done
+
+    return "${rc}"
+}
 .travis/pulp-operator-check-and-wait.sh
