@@ -113,18 +113,6 @@ $CMD_PREFIX pip3 install pytest mock
 $CMD_PREFIX pytest /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/ || /bin/true
 
 # Run functional tests, and upload coverage report to codecov.
-show_logs_and_return_non_zero() {
-    readonly local rc="$?"
-
-    for containerlog in "pulp-api" "pulp-content" "pulp-resource-manager" "pulp-worker"
-    do
-      echo -en "travis_fold:start:$containerlog"'\\r'
-      sudo kubectl logs -l app=$containerlog --tail=10000
-      echo -en "travis_fold:end:$containerlog"'\\r'
-    done
-
-    return "${rc}"
-}
 
 # Run functional tests
 set +u

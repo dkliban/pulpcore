@@ -83,10 +83,10 @@ CRYAML
 # Deploy pulp-operator, with the pulp containers, according to CRYAML
 sudo ./up.sh
 
-# Copied from script.sh
 # Needed for the script below
-# Since it is being run during install rather than actual tests, and therefore
-# does not trigger after_failure travis commands.
+# Since it is being run during install rather than actual tests (unlike in 
+# pulp-operator), and therefore does not trigger the equivalent after_failure
+# travis commands.
 show_logs_and_return_non_zero() {
     readonly local rc="$?"
 
