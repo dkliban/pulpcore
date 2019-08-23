@@ -42,8 +42,8 @@ PLUGIN=pulp_file
 if [ -e $TRAVIS_BUILD_DIR/../pulp-certguard ]; then
   PULP_CERTGUARD=./pulp-certguard
 else
-  # Otherwise, stable release
-  PULP_CERTGUARD=pulp-certguard
+  # Otherwise, master branch release
+  PULP_CERTGUARD=git+https://github.com/pulp/pulp-certguard.git
 fi
 
 cat > vars/vars.yaml << VARSYAML
