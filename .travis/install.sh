@@ -10,8 +10,10 @@
 set -v
 
 if [ "$TEST" = 'docs' ]; then
-  pip3 install -r doc_requirements.txt
-  pip3 install psycopg2-binary
+
+  pip3 install -r ../pulpcore/doc_requirements.txt
+  pip3 install -r ../pulpcore/pulpcore.egg-info/requires.txt
+  pip3 install -r ../pulpcore/pulpcore.egg-info/requires.txt[postgres]
 fi
 
 pip install -r test_requirements.txt
