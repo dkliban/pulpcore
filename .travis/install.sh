@@ -76,6 +76,10 @@ spec:
     size: "40Gi"
   image: $PLUGIN
   tag: $TAG
+  database_connection:
+    username: pulp
+    password: pulp
+    admin_password: pulp
 CRYAML
 
 # Install k3s, lightweight Kubernetes
