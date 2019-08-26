@@ -105,6 +105,8 @@ export CMD_PREFIX="sudo kubectl exec $PULP_API_POD --"
 # So install it here, rather than in the image Dockerfile.
 # This has to be done after wait_for_pulp (although not at the very end of it.)
 $CMD_PREFIX pip3 install pytest mock
+# Many functional tests require these
+$CMD_PREFIX dnf install lsof which
 # The alias does not seem to work in Travis / the scripting framework
 #alias pytest="$CMD_PREFIX pytest"
 
