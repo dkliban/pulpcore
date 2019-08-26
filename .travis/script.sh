@@ -109,9 +109,10 @@ $CMD_PREFIX pip3 install pytest mock
 #alias pytest="$CMD_PREFIX pytest"
 
 # Run unit tests.
+$CMD_PREFIX bash -c "sed \"s/'USER': 'pulp'/'USER': 'postgres'/g\" /etc/pulp/settings.py > unit-test.py"
 # Temporarily continue here while we fix them under containers.
 set +e
-$CMD_PREFIX pytest /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/
+$CMD_PREFIX bash -c "PULP_SETTINGS=/unit-test.py django-admin test  --noinput /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/"
 set -e
 
 # Run functional tests, and upload coverage report to codecov.
