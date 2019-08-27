@@ -26,9 +26,6 @@ export PULP_ROLES_PR_NUMBER=$(echo $COMMIT_MSG | grep -oP 'Required\ PR:\ https\
 export PULP_BINDINGS_PR_NUMBER=$(echo $COMMIT_MSG | grep -oP 'Required\ PR:\ https\:\/\/github\.com\/pulp\/pulp-openapi-generator\/pull\/(\d+)' | awk -F'/' '{print $7}')
 export PULP_OPERATOR_PR_NUMBER=$(echo $COMMIT_MSG | grep -oP 'Required\ PR:\ https\:\/\/github\.com\/pulp\/pulp-operator\/pull\/(\d+)' | awk -F'/' '{print $7}')
 
-# dev_requirements should not be needed for testing; don't install them to make sure
-pip install -r test_requirements.txt
-
 # check the commit message
 ./.travis/check_commit.sh
 
@@ -74,13 +71,12 @@ if [ -n "$PULP_SMASH_PR_NUMBER" ]; then
   git fetch --depth=1 origin +refs/pull/$PULP_SMASH_PR_NUMBER/merge
   git checkout FETCH_HEAD
   cd ..
+  # Pulp-Smash would get pulled in from PyPI as a dep
+  # Installing the local version first should override it
+  pip install ./pulp-smash
 fi
 
-psql -c 'CREATE DATABASE pulp OWNER travis;'
-
 pip install ansible
-cp pulpcore/.travis/playbook.yml ansible-pulp/playbook.yml
-cp pulpcore/.travis/postgres.yml ansible-pulp/postgres.yml
 
 cd pulpcore
 
