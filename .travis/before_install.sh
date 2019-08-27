@@ -26,6 +26,10 @@ export PULP_ROLES_PR_NUMBER=$(echo $COMMIT_MSG | grep -oP 'Required\ PR:\ https\
 export PULP_BINDINGS_PR_NUMBER=$(echo $COMMIT_MSG | grep -oP 'Required\ PR:\ https\:\/\/github\.com\/pulp\/pulp-openapi-generator\/pull\/(\d+)' | awk -F'/' '{print $7}')
 export PULP_OPERATOR_PR_NUMBER=$(echo $COMMIT_MSG | grep -oP 'Required\ PR:\ https\:\/\/github\.com\/pulp\/pulp-operator\/pull\/(\d+)' | awk -F'/' '{print $7}')
 
+# test_requirements contains tools needed for flake8, etc.
+# So install them here rather than in install.sh
+pip install -r test_requirements.txt
+
 # check the commit message
 ./.travis/check_commit.sh
 
@@ -73,7 +77,7 @@ if [ -n "$PULP_SMASH_PR_NUMBER" ]; then
   cd ..
   # Pulp-Smash would get pulled in from PyPI as a dep
   # Installing the local version first should override it
-  pip install ./pulp-smash
+  pip install --upgrade --force-reinstall ./pulp-smash
 fi
 
 pip install ansible
