@@ -11,10 +11,9 @@ set -v
 
 if [ "$TEST" = 'docs' ]; then
 
-  pip3 install .
-  pip3 install .[postgres]
+  pip install psycopg2-binary
 
-  pip3 install -r doc_requirements.txt
+  pip install -r doc_requirements.txt
 fi
 
 pip install -r test_requirements.txt
