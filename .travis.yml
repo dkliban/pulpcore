@@ -38,6 +38,11 @@ addons:
       - jq
   # postgres versions provided by el7 RHSCL (lowest supportable version)
   postgresql: '9.6'
+  # Certain tests running in the pulp-api container will need to talk to
+  # k8s-node:24816, which gets redirected to the pulp-content container, rather
+  # than localhost:24816 (which is the pulp-api container.)
+  hosts:
+    - k8s-node
 before_install: .travis/before_install.sh
 install: .travis/install.sh
 before_script: .travis/before_script.sh
