@@ -6,7 +6,7 @@
     },
     "hosts": [
         {
-            "hostname": "k8s-node",
+            "hostname": "localhost",
             "roles": {
                 "api": {"port": 24817, "scheme": "http", "service": "nginx"},
                 "content": {"port": 24816, "scheme": "http", "service": "pulp_content_app"},
