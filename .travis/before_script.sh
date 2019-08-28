@@ -18,7 +18,7 @@ fi
 
 
 mkdir -p ~/.config/pulp_smash
-cp ../pulpcore/.travis/pulp-smash-config.json ~/.config/pulp_smash/settings.json
+sed "s/localhost/$(hostname)/g" ../pulpcore/.travis/pulp-smash-config.json > ~/.config/pulp_smash/settings.json
 
 
 if [ -f $POST_BEFORE_SCRIPT ]; then
