@@ -69,16 +69,17 @@ if [ -n "$PULP_PLUGIN_PR_NUMBER" ]; then
 fi
 
 
+git clone --depth=1 https://github.com/PulpQE/pulp-smash.git
+
 if [ -n "$PULP_SMASH_PR_NUMBER" ]; then
-  git clone --depth=1 https://github.com/PulpQE/pulp-smash.git
   cd pulp-smash
   git fetch --depth=1 origin +refs/pull/$PULP_SMASH_PR_NUMBER/merge
   git checkout FETCH_HEAD
   cd ..
-  # Pulp-Smash would get pulled in from PyPI as a dep
-  # Installing the local version first should override it
-  pip install --upgrade --force-reinstall ./pulp-smash
 fi
+
+# pulp-smash already got installed via test_requirements.txt
+pip install --upgrade --force-reinstall ./pulp-smash
 
 pip install ansible
 
