@@ -1,6 +1,7 @@
 coreapi
 django
 djangorestframework
+djangorestframework-queryfields
 django-filter
 drf-nested-routers
 drf-yasg
