@@ -117,7 +117,11 @@ set +e
 $CMD_PREFIX bash -c "PULP_SETTINGS=/unit-test.py django-admin test  --noinput /usr/local/lib/python${TRAVIS_PYTHON_VERSION}/site-packages/pulpcore/tests/unit/"
 set -e
 
-# Run functional tests, and upload coverage report to codecov.
+# Note: This function is in the process of being merged into after_failure
+show_logs_and_return_non_zero() {
+  readonly local rc="$?"
+  return "${rc}"
+}
 
 # Run functional tests
 set +u
@@ -128,7 +132,7 @@ set -u
 if [ -f $FUNC_TEST_SCRIPT ]; then
     $FUNC_TEST_SCRIPT
 else
-    pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || $CMD_PREFIX bash -c "ls -latr /etc/yum.repos.d/ && cat /etc/yum.repos.d/* && exit 1"
+    pytest -v -r sx --color=yes --pyargs pulpcore.tests.functional || show_logs_and_return_non_zero
 fi
 
 if [ -f $POST_SCRIPT ]; then
