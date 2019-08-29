@@ -106,7 +106,7 @@ export CMD_PREFIX="sudo kubectl exec $PULP_API_POD --"
 # This has to be done after wait_for_pulp (although not at the very end of it.)
 $CMD_PREFIX pip3 install pytest mock
 # Many functional tests require these
-$CMD_PREFIX dnf install -y lsof which dnf-plugins-core
+$CMD_PREFIX dnf install -yq lsof which dnf-plugins-core
 # The alias does not seem to work in Travis / the scripting framework
 #alias pytest="$CMD_PREFIX pytest"
 
