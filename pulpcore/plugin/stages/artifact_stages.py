@@ -3,9 +3,7 @@ from collections import defaultdict
 from gettext import gettext as _
 import logging
 
-from django.db.models import Prefetch, prefetch_related_objects
-
-from pulpcore.plugin.models import Artifact, ContentArtifact, ProgressReport, RemoteArtifact
+from pulpcore.plugin.models import Artifact, ProgressReport, RemoteArtifact
 
 from .api import Stage
 
@@ -262,23 +260,9 @@ class RemoteArtifactSaver(Stage):
                 if d_artifact.remote:
                     remotes_present.add(d_artifact.remote)
 
-        prefetch_related_objects(
-            [d_c.content for d_c in batch],
-            Prefetch(
-                "contentartifact_set",
-                queryset=ContentArtifact.objects.prefetch_related(
-                    Prefetch(
-                        "remoteartifact_set",
-                        queryset=RemoteArtifact.objects.filter(remote__in=remotes_present),
-                        to_attr="_remote_artifact_saver_ras",
-                    )
-                ),
-                to_attr="_remote_artifact_saver_cas",
-            ),
-        )
         needed_ras = []
         for d_content in batch:
-            for content_artifact in d_content.content._remote_artifact_saver_cas:
+            for content_artifact in d_content.content.contentartifact_set.all():
                 for d_artifact in d_content.d_artifacts:
                     if d_artifact.relative_path == content_artifact.relative_path:
                         break
@@ -287,7 +271,9 @@ class RemoteArtifactSaver(Stage):
                     raise ValueError(
                         msg.format(rp=content_artifact.relative_path, c=d_content.content)
                     )
-                for remote_artifact in content_artifact._remote_artifact_saver_ras:
+                for remote_artifact in content_artifact.remoteartifact_set.filter(
+                    remote__in=remotes_present
+                ):
                     if remote_artifact.remote_id == d_artifact.remote.pk:
                         break
                 else:
