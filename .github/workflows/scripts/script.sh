@@ -50,7 +50,7 @@ if [[ "$TEST" == "plugin-from-pypi" ]]; then
   git checkout ${COMPONENT_VERSION} -- pulpcore/tests/
 fi
 
-if [[ "$TEST" = 'bindings' || "$TEST" = 'generate-bindings' ]]
+if [[ "$TEST" = 'bindings' || "$TEST" = 'generate-bindings' ]]; then
   ./generate.sh pulp_file python
   pip install ./pulp_file-client
   rm -rf ./pulp_file-client
