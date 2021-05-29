@@ -50,7 +50,7 @@ if [[ "$TEST" == "plugin-from-pypi" ]]; then
   git checkout ${COMPONENT_VERSION} -- pulpcore/tests/
 fi
 
-if [[ "$TEST" = 'bindings' || "$TEST" = 'generate-bindings' ]]; then
+  cd ../pulp-openapi-generator
   ./generate.sh pulp_file python
   pip install ./pulp_file-client
   rm -rf ./pulp_file-client
@@ -66,7 +66,6 @@ if [[ "$TEST" = 'bindings' || "$TEST" = 'generate-bindings' ]]; then
   gem build pulp-certguard_client-0.gem
   cd ..
   cd $REPO_ROOT
-fi
 
 if [[ "$TEST" = 'bindings' ]]; then
   python $REPO_ROOT/.ci/assets/bindings/test_bindings.py
