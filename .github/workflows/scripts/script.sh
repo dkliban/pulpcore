@@ -56,14 +56,16 @@ fi
   rm -rf ./pulp_file-client
   ./generate.sh pulp_file ruby 0
   cd pulp_file-client
-  gem build pulp_file_client-0.gem
+  gem build pulp_file_client.gem
+  gem install --bot ./pulp_file_client-0.gem
   cd ..
   ./generate.sh pulp_certguard python
   pip install ./pulp_certguard-client
   rm -rf ./pulp_certguard-client
   ./generate.sh pulp-certguard ruby 0
   cd pulp-certguard-client
-  gem build pulp-certguard_client-0.gem
+  gem build pulp-certguard_client.gem
+  gem install --bot ./pulp-certguard_client-0.gem
   cd ..
   cd $REPO_ROOT
 
