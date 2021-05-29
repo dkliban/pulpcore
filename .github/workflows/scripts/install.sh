@@ -37,7 +37,7 @@ if [ -e $REPO_ROOT/../pulp-certguard ]; then
 else
   PULP_CERTGUARD=git+https://github.com/pulp/pulp-certguard.git@master
 fi
-if [[ "$RELEASE_WORKFLOW" == "true" ]]; then
+if [[ "${RELEASE_WORKFLOW:-false}" == "true" ]]; then
   PLUGIN_NAME=./dist/pulpcore-*
 else
   PLUGIN_NAME=./pulpcore

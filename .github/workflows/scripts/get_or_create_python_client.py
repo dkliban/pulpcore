@@ -38,7 +38,9 @@ plugin_path = release_path.split("/.github")[0]
 
 # Check if the client package is available on PyPI
 loop = asyncio.get_event_loop()
-package_found = asyncio.run(get_package_from_pypi("pulpcore-client=={client_version}", plugin_path))
+package_was_found = asyncio.run(
+    get_package_from_pypi("pulpcore-client=={client_version}", plugin_path)
+)
 
-if not package_found:
+if not package_was_found:
     os.system("python3 setup.py sdist bdist_wheel --python-tag py3")
