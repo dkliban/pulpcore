@@ -72,9 +72,8 @@ if [[ "$TEST" = 'bindings' ]]; then
   python $REPO_ROOT/.ci/assets/bindings/test_bindings.py
 fi
 
-if [[ "$TEST" = 'bindings' ]]
-  if [ ! -f $REPO_ROOT/.ci/assets/bindings/test_bindings.rb ]
-  then
+if [[ "$TEST" = 'bindings' ]]; then
+  if [ ! -f $REPO_ROOT/.ci/assets/bindings/test_bindings.rb ]; then
     exit
   else
     ruby $REPO_ROOT/.ci/assets/bindings/test_bindings.rb
