@@ -55,14 +55,14 @@ fi
   pip install ./pulp_file-client
   rm -rf ./pulp_file-client
   ./generate.sh pulp_file ruby 0
-  cd pulp_file
+  cd pulp_file_client
   gem build pulp_file_client-0.gem
   cd ..
   ./generate.sh pulp_certguard python
   pip install ./pulp_certguard-client
   rm -rf ./pulp_certguard-client
   ./generate.sh pulp-certguard ruby 0
-  cd pulp-certguard
+  cd pulp-certguard_client
   gem build pulp-certguard_client-0.gem
   cd ..
   cd $REPO_ROOT
