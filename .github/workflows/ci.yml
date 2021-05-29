@@ -128,6 +128,9 @@ jobs:
         run: .github/workflows/scripts/script.sh
         shell: bash
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: After failure
         if: failure()
         run: |
