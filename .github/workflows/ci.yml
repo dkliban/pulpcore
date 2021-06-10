@@ -196,11 +196,4 @@ jobs:
 
       - name: After failure
         if: failure()
-        run: |
-          http --timeout 30 --check-status --pretty format --print hb http://pulp/pulp/api/v3/status/ || true
-          docker images || true
-          docker ps -a || true
-          docker logs pulp || true
-          docker exec pulp ls -latr /etc/yum.repos.d/ || true
-          docker exec pulp cat /etc/yum.repos.d/* || true
-          docker exec pulp pip3 list
+        uses: mxschmitt/action-tmate@v3
