@@ -1,5 +1,5 @@
 
-**Acquire, Organize, and Distribute Software**
+**Acquire,  Organize, and Distribute Software**
 
 Pulp is a platform for managing repositories of content, such as software
 packages, and pushing that content out to large numbers of consumers.
