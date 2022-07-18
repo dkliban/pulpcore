@@ -20,7 +20,7 @@ drf-spectacular==0.17.3
 dynaconf~=3.1.5
 gunicorn~=20.1.0
 jinja2
-pygtrie~=2.4.2
+pygtrie~=2.5.0
 psycopg2>=2.7,<2.9 # pin to < 2.9 until django 3
 PyYAML>=5.1.1,<5.5.0
 python-gnupg~=0.4.7
