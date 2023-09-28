@@ -537,7 +537,7 @@ class Handler:
                 streamed back to the client.
         """
         distro = await sync_to_async(self._match_distribution)(path)
-
+        log.info(request.headers)
         await sync_to_async(self._permit)(request, distro)
 
         rel_path = path.lstrip("/")
