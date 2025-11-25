@@ -23,12 +23,16 @@ from pulpcore.app.util import (
     configure_periodic_telemetry,
 )
 from pulpcore.constants import TASK_FINAL_STATES, TASK_STATES
-from pulpcore.tasking.tasks import dispatch, execute_task
+from pulpcore.tasking.tasks import dispatch
+# Conditionally import execute_task based on WORKER_TYPE
+if settings.WORKER_TYPE == "redis":
+    from pulpcore.tasking.redis_tasks import execute_task
+else:
+    from pulpcore.tasking.tasks import execute_task
 from pulp_service.app.tasks.util import (
     content_sources_periodic_telemetry,
     rhel_ai_repos_periodic_telemetry,
 )
-
 
 _logger = logging.getLogger(__name__)
 

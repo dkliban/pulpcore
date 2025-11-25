@@ -5,6 +5,7 @@ Django models related to the Tasking system
 import logging
 from gettext import gettext as _
 
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, HStoreField
 from django.contrib.postgres.indexes import GinIndex
 from django.core.serializers.json import DjangoJSONEncoder
@@ -205,13 +206,18 @@ class Task(BaseModel, AutoAddObjPermsMixin):
         This updates the :attr:`started_at` and sets the :attr:`state` to :attr:`RUNNING`.
         """
         started_at = timezone.now()
-        rows = Task.objects.filter(
-            pk=self.pk,
-            state=TASK_STATES.WAITING,
-            app_lock=AppStatus.objects.current(),
-        ).update(
+        filter_kwargs = {
+            "pk": self.pk,
+            "state": TASK_STATES.WAITING,
+        }
+        # Only check app_lock for PulpcoreWorker, not RedisWorker
+        if settings.WORKER_TYPE != "redis":
+            filter_kwargs["app_lock"] = AppStatus.objects.current()
+
+        rows = Task.objects.filter(**filter_kwargs).update(
             state=TASK_STATES.RUNNING,
             started_at=started_at,
+            app_lock=AppStatus.objects.current(),
         )
         if rows == 1:
             self.state = TASK_STATES.RUNNING
