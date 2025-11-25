@@ -87,6 +87,194 @@ def test_multi_resource_locking(dispatch_task, monitor_task):
 
 
 @pytest.mark.parallel
+def test_comprehensive_multi_resource_locking(dispatch_task, monitor_task):
+    """
+    Comprehensive test of resource locking with many tasks to keep 10 workers busy.
+
+    This test creates ~40 tasks with various resource patterns:
+    - Wave 1: Tasks with different exclusive resources (run in parallel)
+    - Wave 2: Tasks with shared access (run in parallel)
+    - Wave 3: Tasks with exclusive access (must wait)
+    - Wave 4: Tasks with mixed resource combinations
+
+    Verifies that all tasks complete successfully and resource locking works correctly.
+    """
+    task_hrefs = []
+
+    # Wave 1: 10 tasks with different exclusive resources (can all run in parallel)
+    # These should all start immediately and run concurrently
+    resources_wave1 = [f"R{i}" for i in range(1, 11)]
+    for i, resource in enumerate(resources_wave1):
+        task_href = dispatch_task(
+            "pulpcore.app.tasks.test.sleep",
+            args=(2,),  # 2 second tasks
+            exclusive_resources=[resource]
+        )
+        task_hrefs.append(task_href)
+
+    # Wave 2: 10 tasks with shared access to Wave 1 resources
+    # These should wait for Wave 1 to finish (can't share while exclusive lock held)
+    for i, resource in enumerate(resources_wave1):
+        task_href = dispatch_task(
+            "pulpcore.app.tasks.test.sleep",
+            args=(1,),  # 1 second tasks
+            shared_resources=[resource]
+        )
+        task_hrefs.append(task_href)
+
+    # Wave 3: 5 pairs of tasks sharing resources (can run in parallel)
+    # Each pair shares a resource, pairs can run concurrently
+    for i in range(5):
+        resource = f"S{i}"
+        # Two tasks sharing the same resource
+        task_href1 = dispatch_task(
+            "pulpcore.app.tasks.test.sleep",
+            args=(1,),
+            shared_resources=[resource]
+        )
+        task_href2 = dispatch_task(
+            "pulpcore.app.tasks.test.sleep",
+            args=(1,),
+            shared_resources=[resource]
+        )
+        task_hrefs.append(task_href1)
+        task_hrefs.append(task_href2)
+
+    # Wave 4: Tasks with exclusive access to shared resources (must wait)
+    for i in range(5):
+        resource = f"S{i}"
+        task_href = dispatch_task(
+            "pulpcore.app.tasks.test.sleep",
+            args=(1,),
+            exclusive_resources=[resource]
+        )
+        task_hrefs.append(task_href)
+
+    # Wave 5: Tasks with multiple resources (complex dependencies)
+    task_href = dispatch_task(
+        "pulpcore.app.tasks.test.sleep",
+        args=(1,),
+        exclusive_resources=["R1", "R2"],
+        shared_resources=["R3"]
+    )
+    task_hrefs.append(task_href)
+
+    task_href = dispatch_task(
+        "pulpcore.app.tasks.test.sleep",
+        args=(1,),
+        exclusive_resources=["R4"],
+        shared_resources=["R5", "R6"]
+    )
+    task_hrefs.append(task_href)
+
+    task_href = dispatch_task(
+        "pulpcore.app.tasks.test.sleep",
+        args=(1,),
+        shared_resources=["R1", "R2", "R3", "R4", "R5"]
+    )
+    task_hrefs.append(task_href)
+
+    # Monitor all tasks - this will wait for them all to complete
+    tasks = [monitor_task(href) for href in task_hrefs]
+
+    # Verify all tasks completed successfully
+    for task in tasks:
+        assert task.state == "completed", f"Task {task.pulp_href} failed with state {task.state}"
+
+    # Verify Wave 1 tasks (indices 0-9) started before Wave 2 tasks (indices 10-19)
+    # Since Wave 2 needs shared access to resources held exclusively by Wave 1
+    for i in range(10):
+        wave1_task = tasks[i]
+        wave2_task = tasks[i + 10]
+        assert wave1_task.finished_at < wave2_task.started_at, \
+            f"Wave 2 task {i} should have started after Wave 1 task {i} finished"
+
+    # Verify that shared resource tasks (Wave 3, indices 20-29) can run in parallel
+    # by checking that at least some overlap in execution time
+    wave3_tasks = tasks[20:30]
+    # Find earliest start and latest finish
+    earliest_start = min(t.started_at for t in wave3_tasks)
+    latest_start = max(t.started_at for t in wave3_tasks)
+    # If tasks ran truly sequentially, latest_start would be >> earliest_start
+    # With parallel execution, many should start close together
+    # At least 5 tasks should have started within 3 seconds of the earliest
+    tasks_started_early = sum(
+        1 for t in wave3_tasks
+        if (t.started_at - earliest_start).total_seconds() < 3
+    )
+    assert tasks_started_early >= 5, \
+        f"Expected at least 5 Wave 3 tasks to start in parallel, only {tasks_started_early} did"
+
+    # Verify exclusive access to shared resources (Wave 4, indices 30-34)
+    # must wait for shared tasks to finish
+    for i in range(5):
+        shared_task1 = tasks[20 + i * 2]  # First shared task for S{i}
+        shared_task2 = tasks[20 + i * 2 + 1]  # Second shared task for S{i}
+        exclusive_task = tasks[30 + i]  # Exclusive task for S{i}
+
+        # Exclusive task must start after both shared tasks finish
+        assert shared_task1.finished_at < exclusive_task.started_at, \
+            f"Exclusive S{i} task should start after shared tasks finish"
+        assert shared_task2.finished_at < exclusive_task.started_at, \
+            f"Exclusive S{i} task should start after shared tasks finish"
+
+
+@pytest.mark.parallel
+def test_worker_cleanup_on_missing_worker(dispatch_task, monitor_task, pulpcore_bindings):
+    """
+    Test that when a worker dies unexpectedly while executing a task,
+    the worker cleanup process marks the task as failed and releases its locks,
+    allowing subsequent tasks requiring the same resource to execute.
+    """
+    # Use a unique resource identifier to avoid conflicts with other tests
+    resource = str(uuid4())
+
+    # Dispatch the missing_worker task that will kill its worker process
+    task_href1 = dispatch_task(
+        "pulpcore.app.tasks.test.missing_worker",
+        exclusive_resources=[resource]
+    )
+
+    # Wait for the task to start running and the worker to die
+    time.sleep(2)
+
+    # Dispatch a second task that requires the same resource
+    task_href2 = dispatch_task(
+        "pulpcore.app.tasks.test.sleep",
+        args=(1,),
+        exclusive_resources=[resource]
+    )
+
+    # Wait for worker cleanup to run (happens every ~100 heartbeats)
+    # In tests, this should happen relatively quickly
+    # Monitor both tasks - the first should be marked as failed,
+    # and the second should complete successfully
+    max_wait = 180  # Wait up to 180 seconds for cleanup
+    start_time = time.time()
+
+    task1 = None
+    task2 = None
+
+    while time.time() - start_time < max_wait:
+        task1 = pulpcore_bindings.TasksApi.read(task_href1)
+        task2 = pulpcore_bindings.TasksApi.read(task_href2)
+
+        # Check if task1 is failed and task2 is completed
+        if task1.state == "failed" and task2.state == "completed":
+            break
+
+        time.sleep(1)
+
+    # Verify task1 was marked as failed
+    assert task1.state == "failed", f"Task 1 should be failed but is {task1.state}"
+    assert "worker" in task1.error["description"].lower() and "missing" in task1.error["description"].lower(), \
+        f"Task 1 error should mention missing worker: {task1.error['description']}"
+
+    # Verify task2 completed successfully after locks were released
+    assert task2.state == "completed", f"Task 2 should be completed but is {task2.state}"
+
+
+@pytest.mark.parallel
 def test_delete_cancel_waiting_task(dispatch_task, pulpcore_bindings):
     # Queue one task after a long running one
     resource = str(uuid4())
@@ -485,6 +673,106 @@ class TestImmediateTaskWithNoResource:
         task = pulpcore_bindings.TasksApi.read(task_href)
         assert task.state == "failed"
         assert "timed out after" in task.error["description"]
+
+
+@pytest.mark.parallel
+def test_immediate_task_execution_in_worker(dispatch_task, monitor_task):
+    """
+    GIVEN an immediate async task marked as deferred
+    AND a resource is blocked by another task
+    WHEN the immediate task cannot execute in the API due to blocked resource
+    THEN the task is deferred to a worker and executes successfully
+
+    This test verifies that workers can correctly execute immediate async tasks
+    using aexecute_task() instead of execute_task().
+    """
+    # Use a unique resource to avoid conflicts with other tests
+    resource = str(uuid4())
+
+    # Dispatch a blocking task that holds the resource
+    blocking_task_href = dispatch_task(
+        "pulpcore.app.tasks.test.sleep",
+        args=(3,),  # Runs for 3 seconds
+        exclusive_resources=[resource]
+    )
+
+    # Dispatch the immediate task that needs the same resource
+    # Since the resource is blocked, API cannot execute it immediately
+    # It will be deferred to a worker
+    task_href = dispatch_task(
+        "pulpcore.app.tasks.test.asleep",
+        args=(0.1,),  # Short sleep to make test fast
+        immediate=True,
+        deferred=True,
+        exclusive_resources=[resource]
+    )
+
+    # Monitor the task - it should complete successfully after blocking task finishes
+    task = monitor_task(task_href)
+
+    # Verify task completed successfully
+    assert task.state == "completed", f"Task should be completed but is {task.state}"
+
+    # Verify state transitions occurred correctly
+    assert task.started_at is not None, "Task should have a started_at timestamp"
+    assert task.finished_at is not None, "Task should have a finished_at timestamp"
+    assert task.started_at < task.finished_at, "Task should have started before finishing"
+
+    # Verify there's no error
+    assert task.error is None, f"Task should not have an error but has: {task.error}"
+
+    # Clean up blocking task
+    monitor_task(blocking_task_href)
+
+
+@pytest.mark.parallel
+def test_failing_immediate_task_error_handling(dispatch_task, monitor_task):
+    """
+    GIVEN a task that raises a RuntimeError
+    AND the task is an async function
+    WHEN dispatching the task as immediate and deferred
+    THEN the task fails with the correct error message
+    AND the error field contains the exception details
+    """
+    custom_error_message = "This is a custom error message"
+    with pytest.raises(PulpTaskError) as ctx:
+        task_href = dispatch_task(
+            "pulpcore.app.tasks.test.afailing_task",
+            kwargs={"error_message": custom_error_message},
+            immediate=True,
+            deferred=True,
+        )
+        monitor_task(task_href)
+
+    task = ctx.value.task
+    assert task.state == "failed"
+    assert task.error is not None
+    assert "description" in task.error
+    assert custom_error_message in task.error["description"]
+
+
+@pytest.mark.parallel
+def test_failing_worker_task_error_handling(dispatch_task, monitor_task):
+    """
+    GIVEN a task that raises a RuntimeError
+    AND the task is a sync function
+    WHEN dispatching the task as deferred (executes on worker)
+    THEN the task fails with the correct error message
+    AND the error field contains the exception details
+    """
+    custom_error_message = "Worker task failed with custom error"
+    with pytest.raises(PulpTaskError) as ctx:
+        task_href = dispatch_task(
+            "pulpcore.app.tasks.test.failing_task",
+            kwargs={"error_message": custom_error_message},
+        )
+        monitor_task(task_href)
+
+    task = ctx.value.task
+    assert task.state == "failed"
+    assert task.error is not None
+    assert "description" in task.error
+    assert custom_error_message in task.error["description"]
 
 
 @pytest.fixture
