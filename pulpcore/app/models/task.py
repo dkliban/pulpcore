@@ -210,7 +210,6 @@ class Task(BaseModel, AutoAddObjPermsMixin):
         rows = Task.objects.filter(
             pk=self.pk,
             state=TASK_STATES.WAITING,
-            app_lock=AppStatus.objects.current(),
         ).update(
             state=TASK_STATES.RUNNING,
             started_at=started_at,
@@ -250,7 +249,6 @@ class Task(BaseModel, AutoAddObjPermsMixin):
         rows = Task.objects.filter(
             pk=self.pk,
             state=TASK_STATES.RUNNING,
-            app_lock=AppStatus.objects.current(),
         ).update(
             state=TASK_STATES.COMPLETED,
             finished_at=finished_at,
@@ -289,7 +287,6 @@ class Task(BaseModel, AutoAddObjPermsMixin):
         rows = Task.objects.filter(
             pk=self.pk,
             state=TASK_STATES.RUNNING,
-            app_lock=AppStatus.objects.current(),
         ).update(
             state=TASK_STATES.FAILED,
             finished_at=finished_at,
@@ -340,7 +337,6 @@ class Task(BaseModel, AutoAddObjPermsMixin):
         rows = Task.objects.filter(
             pk=self.pk,
             state=TASK_STATES.CANCELING,
-            app_lock=AppStatus.objects.current(),
         ).update(
             state=final_state,
             finished_at=finished_at,

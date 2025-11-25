@@ -9,7 +9,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pulpcore.app.settings")
 django.setup()
 
 from django.conf import settings  # noqa: E402: module level not at top
-from pulpcore.tasking.worker import PulpcoreWorker  # noqa: E402: module level not at top
+from pulp_service.tasking.new_worker import NewPulpcoreWorker  # noqa: E402: module level not at top
 
 
 _logger = logging.getLogger(__name__)
@@ -61,4 +61,4 @@ def worker(
 
     _logger.info("Starting distributed type worker")
 
-    PulpcoreWorker(auxiliary=auxiliary).run(burst=burst)
+    NewPulpcoreWorker().run(burst=burst)

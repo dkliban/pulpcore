@@ -9,6 +9,7 @@ import threading
 import time
 import tempfile
 from gettext import gettext as _
+from asgiref.sync import sync_to_async
 
 from django.conf import settings
 from django.db import connection, transaction, IntegrityError
@@ -17,20 +18,105 @@ from django.utils import timezone
 from django_guid import set_guid
 from django_guid.utils import generate_guid
 from pulpcore.app.models import Artifact, Content, Task, TaskSchedule, ProfileArtifact
+from pulpcore.app.redis_connection import get_redis_connection
 from pulpcore.app.util import (
     configure_analytics,
     configure_cleanup,
     configure_periodic_telemetry,
 )
 from pulpcore.constants import TASK_FINAL_STATES, TASK_STATES
-from pulpcore.tasking.tasks import dispatch, execute_task
+
 from pulp_service.app.tasks.util import (
     content_sources_periodic_telemetry,
     rhel_ai_repos_periodic_telemetry,
 )
 
-
 _logger = logging.getLogger(__name__)
+
+# Redis key prefix for resource locks
+REDIS_LOCK_PREFIX = "pulp:resource_lock:"
+
+# Lua script for atomic lock release (only release if we own the lock)
+REDIS_UNLOCK_SCRIPT = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+else
+    return 0
+end
+"""
+
+
+def resource_to_lock_key(resource_name):
+    """
+    Convert a resource name to a Redis lock key.
+
+    Args:
+        resource_name (str): The resource name (e.g., "prn:rpm.repository:abc123")
+
+    Returns:
+        str: A Redis key for the resource lock
+    """
+    return f"{REDIS_LOCK_PREFIX}{resource_name}"
+
+
+def release_resource_locks(redis_conn, lock_owner, resources):
+    """
+    Release Redis distributed locks for the given resources.
+
+    Uses a Lua script to ensure we only release locks that we own.
+
+    Args:
+        redis_conn: Redis connection
+        lock_owner (str): The identifier of the lock owner
+        resources (list): List of resource names to release locks for
+    """
+    if not redis_conn:
+        return
+
+    # Register the unlock script
+    unlock_script = redis_conn.register_script(REDIS_UNLOCK_SCRIPT)
+
+    for resource in resources:
+        try:
+            lock_key = resource_to_lock_key(resource)
+            # Use Lua script to atomically check and delete only if we own the lock
+            released = unlock_script(keys=[lock_key], args=[lock_owner])
+            if released:
+                _logger.debug("Released lock for resource: %s", resource)
+            else:
+                _logger.warning("Lock for resource %s was not owned by %s", resource, lock_owner)
+        except Exception as e:
+            _logger.error("Error releasing lock for resource %s: %s", resource, e)
+
+
+async def async_release_resource_locks(redis_conn, lock_owner, resources):
+    """
+    Async version: Release Redis distributed locks for the given resources.
+
+    Uses a Lua script to ensure we only release locks that we own.
+
+    Args:
+        redis_conn: Redis connection
+        lock_owner (str): The identifier of the lock owner
+        resources (list): List of resource names to release locks for
+    """
+    if not redis_conn:
+        return
+
+    # Register the unlock script
+    unlock_script = await sync_to_async(redis_conn.register_script)(REDIS_UNLOCK_SCRIPT)
+
+    for resource in resources:
+        try:
+            lock_key = resource_to_lock_key(resource)
+            # Use Lua script to atomically check and delete only if we own the lock
+            released = await sync_to_async(unlock_script)(keys=[lock_key], args=[lock_owner])
+            if released:
+                _logger.debug("Released lock for resource: %s", resource)
+            else:
+                _logger.warning("Lock for resource %s was not owned by %s", resource, lock_owner)
+        except Exception as e:
+            _logger.error("Error releasing lock for resource %s: %s", resource, e)
 
 
 def startup_hook():
@@ -93,6 +179,8 @@ def child_signal_handler(sig, frame):
 def perform_task(task_pk, task_working_dir_rel_path):
     """Setup the environment to handle a task and execute it.
     This must be called as a subprocess, while the parent holds the advisory lock of the task."""
+    from pulpcore.tasking.tasks import execute_task
+
     signal.signal(signal.SIGINT, child_signal_handler)
     signal.signal(signal.SIGTERM, child_signal_handler)
     signal.signal(signal.SIGHUP, child_signal_handler)
@@ -119,6 +207,8 @@ def perform_task(task_pk, task_working_dir_rel_path):
 
 
 def _execute_task_and_profile(task, profile_options):
+    from pulpcore.tasking.tasks import execute_task
+
     with tempfile.TemporaryDirectory(dir=settings.WORKING_DIRECTORY) as temp_dir:
         _execute_task = execute_task
 
@@ -226,6 +316,8 @@ def _memray_diagnostic_decorator(temp_dir, func):
 
 
 def dispatch_scheduled_tasks():
+    from pulpcore.tasking.tasks import dispatch
+
     # Warning, dispatch_scheduled_tasks is not race condition free!
     now = timezone.now()
     # Dispatch all tasks old enough and not still running

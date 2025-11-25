@@ -223,19 +223,7 @@ class TaskViewSet(
         responses={200: TaskSerializer, 409: TaskSerializer},
     )
     def partial_update(self, request, pk=None, partial=True):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        task = self.get_object()
-        task = cancel_task(task.pk)
-        # Check whether task is actually canceled
-        http_status = (
-            None
-            if task.state in [TASK_STATES.CANCELING, TASK_STATES.CANCELED]
-            else status.HTTP_409_CONFLICT
-        )
-        serializer = self.serializer_class(task, context={"request": request})
-        return Response(serializer.data, status=http_status)
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
     def destroy(self, request, pk=None):
         task = self.get_object()
