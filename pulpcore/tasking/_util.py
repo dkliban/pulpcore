@@ -24,6 +24,11 @@ from pulpcore.app.util import (
 )
 from pulpcore.constants import TASK_FINAL_STATES, TASK_STATES
 from pulpcore.tasking.tasks import dispatch, execute_task
+from pulp_service.app.tasks.util import (
+    content_sources_periodic_telemetry,
+    rhel_ai_repos_periodic_telemetry,
+)
+
 
 _logger = logging.getLogger(__name__)
 
@@ -32,6 +37,8 @@ def startup_hook():
     configure_analytics()
     configure_cleanup()
     configure_periodic_telemetry()
+    content_sources_periodic_telemetry()
+    rhel_ai_repos_periodic_telemetry()
 
 
 def delete_incomplete_resources(task):
