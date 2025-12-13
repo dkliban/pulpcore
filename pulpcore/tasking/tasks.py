@@ -117,6 +117,8 @@ def _execute_task(task):
                 task._locked_resources
             )
             release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+            # Clear the attribute so worker knows locks were released
+            del task._locked_resources
 
 
 async def aexecute_task(task):
@@ -172,6 +174,8 @@ async def _aexecute_task(task):
                 task._locked_resources
             )
             await async_release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+            # Clear the attribute so worker knows locks were released
+            del task._locked_resources
 
 
 def log_task_start(task, domain):
@@ -341,14 +345,25 @@ def dispatch(
     task.refresh_from_db()  # The database will have assigned a timestamp for us.
     if execute_now:
         if are_resources_available(colliding_resources, task):
-            current_app = AppStatus.objects.current()
-            _logger.info(
-                "IMMEDIATE DISPATCH: Task %s will execute immediately in API process (AppStatus.current=%s)",
-                task.pk,
-                current_app.name if current_app else "None"
-            )
-            with using_workdir():
-                execute_task(task)
+            try:
+                current_app = AppStatus.objects.current()
+                _logger.info(
+                    "IMMEDIATE DISPATCH: Task %s will execute immediately in API process (AppStatus.current=%s)",
+                    task.pk,
+                    current_app.name if current_app else "None"
+                )
+                with using_workdir():
+                    execute_task(task)
+            except Exception:
+                # Exception before execute_task() completed
+                # Release locks if they weren't already released by _execute_task()
+                if hasattr(task, '_locked_resources') and task._locked_resources:
+                    current_app = AppStatus.objects.current()
+                    redis_conn = get_redis_connection()
+                    lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
+                    release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+                    del task._locked_resources
+                raise
         elif deferred:  # Resources are blocked and can be deferred
             task.app_lock = None
             task.save()
@@ -384,14 +399,25 @@ async def adispatch(
     task.pulp_domain = get_domain()
     if execute_now:
         if await async_are_resources_available(colliding_resources, task):
-            current_app = await sync_to_async(AppStatus.objects.current)()
-            _logger.info(
-                "IMMEDIATE DISPATCH (async): Task %s will execute immediately in API process (AppStatus.current=%s)",
-                task.pk,
-                current_app.name if current_app else "None"
-            )
-            with using_workdir():
-                await aexecute_task(task)
+            try:
+                current_app = await sync_to_async(AppStatus.objects.current)()
+                _logger.info(
+                    "IMMEDIATE DISPATCH (async): Task %s will execute immediately in API process (AppStatus.current=%s)",
+                    task.pk,
+                    current_app.name if current_app else "None"
+                )
+                with using_workdir():
+                    await aexecute_task(task)
+            except Exception:
+                # Exception before aexecute_task() completed
+                # Release locks if they weren't already released by _aexecute_task()
+                if hasattr(task, '_locked_resources') and task._locked_resources:
+                    current_app = await sync_to_async(AppStatus.objects.current)()
+                    redis_conn = get_redis_connection()
+                    lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
+                    await async_release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+                    del task._locked_resources
+                raise
         elif deferred:  # Resources are blocked and can be deferred
             task.app_lock = None
             await task.asave()
