@@ -70,6 +70,21 @@ def execute_task(task):
 
 def _execute_task(task):
     try:
+        # Log execution context information
+        current_app = AppStatus.objects.current()
+        if current_app:
+            _logger.info(
+                "TASK EXECUTION: Task %s being executed by %s (app_type=%s)",
+                task.pk,
+                current_app.name,
+                current_app.app_type
+            )
+        else:
+            _logger.info(
+                "TASK EXECUTION: Task %s being executed with no AppStatus.current()",
+                task.pk
+            )
+
         with with_task_context(task):
             task.set_running()
             domain = get_domain()
@@ -90,11 +105,31 @@ def _execute_task(task):
             return None
     finally:
         # Release Redis locks if this was an immediate task
+        # BUT only if we're NOT being executed by a worker (workers handle their own lock cleanup)
         if hasattr(task, '_locked_resources') and task._locked_resources:
-            redis_conn = get_redis_connection()
             current_app = AppStatus.objects.current()
-            lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
-            release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+
+            # Only release locks if not executed by a worker
+            # Workers release locks in their own finally block
+            should_release = current_app is None or current_app.app_type != "worker"
+
+            if should_release:
+                redis_conn = get_redis_connection()
+                lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
+                _logger.info(
+                    "TASK LOCK RELEASE: Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
+                    task.pk,
+                    lock_owner,
+                    current_app.name if current_app else "None",
+                    task._locked_resources
+                )
+                release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+            else:
+                _logger.info(
+                    "TASK LOCK RELEASE: Task %s skipping lock release (worker %s will handle it)",
+                    task.pk,
+                    current_app.name
+                )
 
 
 async def aexecute_task(task):
@@ -104,6 +139,21 @@ async def aexecute_task(task):
 
 async def _aexecute_task(task):
     try:
+        # Log execution context information
+        current_app = await sync_to_async(AppStatus.objects.current)()
+        if current_app:
+            _logger.info(
+                "TASK EXECUTION (async): Task %s being executed by %s (app_type=%s)",
+                task.pk,
+                current_app.name,
+                current_app.app_type
+            )
+        else:
+            _logger.info(
+                "TASK EXECUTION (async): Task %s being executed with no AppStatus.current()",
+                task.pk
+            )
+
         async with awith_task_context(task):
             await sync_to_async(task.set_running)()
             domain = get_domain()
@@ -123,11 +173,31 @@ async def _aexecute_task(task):
             return None
     finally:
         # Release Redis locks if this was an immediate task
+        # BUT only if we're NOT being executed by a worker (workers handle their own lock cleanup)
         if hasattr(task, '_locked_resources') and task._locked_resources:
-            redis_conn = get_redis_connection()
             current_app = await sync_to_async(AppStatus.objects.current)()
-            lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
-            await async_release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+
+            # Only release locks if not executed by a worker
+            # Workers release locks in their own finally block
+            should_release = current_app is None or current_app.app_type != "worker"
+
+            if should_release:
+                redis_conn = get_redis_connection()
+                lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
+                _logger.info(
+                    "TASK LOCK RELEASE (async): Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
+                    task.pk,
+                    lock_owner,
+                    current_app.name if current_app else "None",
+                    task._locked_resources
+                )
+                await async_release_resource_locks(redis_conn, lock_owner, task._locked_resources)
+            else:
+                _logger.info(
+                    "TASK LOCK RELEASE (async): Task %s skipping lock release (worker %s will handle it)",
+                    task.pk,
+                    current_app.name
+                )
 
 
 def log_task_start(task, domain):
@@ -297,6 +367,12 @@ def dispatch(
     task.refresh_from_db()  # The database will have assigned a timestamp for us.
     if execute_now:
         if are_resources_available(colliding_resources, task):
+            current_app = AppStatus.objects.current()
+            _logger.info(
+                "IMMEDIATE DISPATCH: Task %s will execute immediately in API process (AppStatus.current=%s)",
+                task.pk,
+                current_app.name if current_app else "None"
+            )
             with using_workdir():
                 execute_task(task)
         elif deferred:  # Resources are blocked and can be deferred
@@ -334,6 +410,12 @@ async def adispatch(
     task.pulp_domain = get_domain()
     if execute_now:
         if await async_are_resources_available(colliding_resources, task):
+            current_app = await sync_to_async(AppStatus.objects.current)()
+            _logger.info(
+                "IMMEDIATE DISPATCH (async): Task %s will execute immediately in API process (AppStatus.current=%s)",
+                task.pk,
+                current_app.name if current_app else "None"
+            )
             with using_workdir():
                 await aexecute_task(task)
         elif deferred:  # Resources are blocked and can be deferred
