@@ -105,31 +105,18 @@ def _execute_task(task):
             return None
     finally:
         # Release Redis locks if this was an immediate task
-        # BUT only if we're NOT being executed by a worker (workers handle their own lock cleanup)
         if hasattr(task, '_locked_resources') and task._locked_resources:
             current_app = AppStatus.objects.current()
-
-            # Only release locks if not executed by a worker
-            # Workers release locks in their own finally block
-            should_release = current_app is None or current_app.app_type != "worker"
-
-            if should_release:
-                redis_conn = get_redis_connection()
-                lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
-                _logger.info(
-                    "TASK LOCK RELEASE: Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
-                    task.pk,
-                    lock_owner,
-                    current_app.name if current_app else "None",
-                    task._locked_resources
-                )
-                release_resource_locks(redis_conn, lock_owner, task._locked_resources)
-            else:
-                _logger.info(
-                    "TASK LOCK RELEASE: Task %s skipping lock release (worker %s will handle it)",
-                    task.pk,
-                    current_app.name
-                )
+            redis_conn = get_redis_connection()
+            lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
+            _logger.info(
+                "TASK LOCK RELEASE: Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
+                task.pk,
+                lock_owner,
+                current_app.name if current_app else "None",
+                task._locked_resources
+            )
+            release_resource_locks(redis_conn, lock_owner, task._locked_resources)
 
 
 async def aexecute_task(task):
@@ -173,31 +160,18 @@ async def _aexecute_task(task):
             return None
     finally:
         # Release Redis locks if this was an immediate task
-        # BUT only if we're NOT being executed by a worker (workers handle their own lock cleanup)
         if hasattr(task, '_locked_resources') and task._locked_resources:
             current_app = await sync_to_async(AppStatus.objects.current)()
-
-            # Only release locks if not executed by a worker
-            # Workers release locks in their own finally block
-            should_release = current_app is None or current_app.app_type != "worker"
-
-            if should_release:
-                redis_conn = get_redis_connection()
-                lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
-                _logger.info(
-                    "TASK LOCK RELEASE (async): Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
-                    task.pk,
-                    lock_owner,
-                    current_app.name if current_app else "None",
-                    task._locked_resources
-                )
-                await async_release_resource_locks(redis_conn, lock_owner, task._locked_resources)
-            else:
-                _logger.info(
-                    "TASK LOCK RELEASE (async): Task %s skipping lock release (worker %s will handle it)",
-                    task.pk,
-                    current_app.name
-                )
+            redis_conn = get_redis_connection()
+            lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
+            _logger.info(
+                "TASK LOCK RELEASE (async): Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
+                task.pk,
+                lock_owner,
+                current_app.name if current_app else "None",
+                task._locked_resources
+            )
+            await async_release_resource_locks(redis_conn, lock_owner, task._locked_resources)
 
 
 def log_task_start(task, domain):
