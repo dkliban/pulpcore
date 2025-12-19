@@ -14,7 +14,7 @@ from asgiref.sync import sync_to_async, async_to_sync
 from django.conf import settings
 from django.db import connection
 from django.db.models import Model
-from django_guid import get_guid
+from django_guid import get_guid, set_guid
 from pulpcore.app.apps import MODULE_PLUGIN_VERSIONS
 from pulpcore.app.models import Task, TaskGroup, AppStatus
 from pulpcore.app.redis_connection import get_redis_connection
@@ -104,13 +104,15 @@ def _execute_task(task):
                 return result
             return None
     finally:
+        # Restore the task's GUID for proper logging (contexts.py bug workaround)
+        set_guid(task.logging_cid)
         # Release Redis locks if this was an immediate task
         if hasattr(task, '_locked_resources') and task._locked_resources:
             current_app = AppStatus.objects.current()
             redis_conn = get_redis_connection()
             lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
             _logger.info(
-                "TASK LOCK RELEASE: Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
+                "RESOURCE LOCK RELEASE: Task %s releasing resource locks with owner=%s (AppStatus.current=%s) for resources: %s",
                 task.pk,
                 lock_owner,
                 current_app.name if current_app else "None",
@@ -161,13 +163,15 @@ async def _aexecute_task(task):
                 return result
             return None
     finally:
+        # Restore the task's GUID for proper logging (contexts.py bug workaround)
+        set_guid(task.logging_cid)
         # Release Redis locks if this was an immediate task
         if hasattr(task, '_locked_resources') and task._locked_resources:
             current_app = await sync_to_async(AppStatus.objects.current)()
             redis_conn = get_redis_connection()
             lock_owner = current_app.name if current_app else f"immediate-{task.pk}"
             _logger.info(
-                "TASK LOCK RELEASE (async): Task %s releasing locks with owner=%s (AppStatus.current=%s) for resources: %s",
+                "RESOURCE LOCK RELEASE (async): Task %s releasing resource locks with owner=%s (AppStatus.current=%s) for resources: %s",
                 task.pk,
                 lock_owner,
                 current_app.name if current_app else "None",
