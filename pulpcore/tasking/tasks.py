@@ -87,6 +87,14 @@ def _execute_task(task):
 
         with with_task_context(task):
             task.set_running()
+            # Verify task state was actually updated in database
+            db_task = Task.objects.get(pk=task.pk)
+            _logger.info(
+                "TASK STATE VERIFICATION: Task %s local state=%s, database state=%s",
+                task.pk,
+                task.state,
+                db_task.state
+            )
             domain = get_domain()
             try:
                 log_task_start(task, domain)
@@ -145,6 +153,14 @@ async def _aexecute_task(task):
 
         async with awith_task_context(task):
             await sync_to_async(task.set_running)()
+            # Verify task state was actually updated in database
+            db_task = await sync_to_async(Task.objects.get)(pk=task.pk)
+            _logger.info(
+                "TASK STATE VERIFICATION (async): Task %s local state=%s, database state=%s",
+                task.pk,
+                task.state,
+                db_task.state
+            )
             domain = get_domain()
             try:
                 task_coroutine_fn = await aget_task_function(task)
