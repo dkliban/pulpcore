@@ -398,8 +398,6 @@ def dispatch(
                     "IMMEDIATE DISPATCH: Task %s resources not available, released task lock and deferring to worker",
                     task.pk
                 )
-                task.app_lock = None
-                task.save()
             else:
                 # Resources not available and can't be deferred
                 redis_conn.delete(task_lock_key)
@@ -411,8 +409,6 @@ def dispatch(
                 "IMMEDIATE DISPATCH: Task %s could not acquire task lock, deferring to worker",
                 task.pk
             )
-            task.app_lock = None
-            task.save()
         else:
             # Can't acquire task lock and can't be deferred
             task.set_canceling()
@@ -483,8 +479,6 @@ async def adispatch(
                     "IMMEDIATE DISPATCH (async): Task %s resources not available, released task lock and deferring to worker",
                     task.pk
                 )
-                task.app_lock = None
-                await task.asave()
             else:
                 # Resources not available and can't be deferred
                 redis_conn.delete(task_lock_key)
@@ -496,8 +490,6 @@ async def adispatch(
                 "IMMEDIATE DISPATCH (async): Task %s could not acquire task lock, deferring to worker",
                 task.pk
             )
-            task.app_lock = None
-            await task.asave()
         else:
             # Can't acquire task lock and can't be deferred
             task.set_canceling()
