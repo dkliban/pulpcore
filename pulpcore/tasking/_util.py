@@ -63,10 +63,17 @@ for i = 1, num_exclusive do
     local key = KEYS[i]
     local resource_name = ARGV[2 + i]
 
-    -- Check if lock exists
-    if redis.call("exists", key) == 1 then
-        -- Lock already held, add to blocked list
+    -- Check if lock exists (either exclusive or shared)
+    local lock_type = redis.call("type", key)
+    if lock_type["ok"] == "string" then
+        -- Exclusive lock already held
         table.insert(blocked_resources, resource_name)
+    elseif lock_type["ok"] == "set" then
+        -- Shared lock exists, check if set has members
+        if redis.call("scard", key) > 0 then
+            -- Resource is in shared use, can't acquire exclusive lock
+            table.insert(blocked_resources, resource_name)
+        end
     end
 end
 
